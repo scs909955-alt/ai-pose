@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#060608">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AIPose">
+<title>AI Pose Coach</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#060608; --sf:#0f0f12; --sf2:#16161c; --bd:#222228;
+  --ac:#00FF88; --ac2:#00cfff; --dim:rgba(0,255,136,0.12);
+  --tx:#f0f0f5; --mt:#55555f; --rd:#ff4466;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--tx);font-family:'Space Mono',monospace;display:flex;flex-direction:column;max-width:480px;margin:0 auto;position:relative}
+/* ---- HEADER ---- */
+header{padding:12px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);flex-shrink:0}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;letter-spacing:-1px}
+.logo em{color:var(--ac);font-style:normal}
+.badge{font-size:9px;letter-spacing:1.5px;background:var(--dim);color:var(--ac);border:1px solid rgba(0,255,136,.3);padding:4px 9px;border-radius:100px}
+/* ---- SCREENS ---- */
+.screen{flex:1;display:none;flex-direction:column;overflow:hidden}
+.screen.active{display:flex}
+/* ---- HOME SCREEN ---- */
+#home{align-items:center;justify-content:center;gap:20px;padding:30px 20px}
+.home-icon{font-size:64px;filter:drop-shadow(0 0 30px rgba(0,255,136,.3))}
+.home-title{font-family:'Syne',sans-serif;font-weight:800;font-size:26px;text-align:center;letter-spacing:-1px}
+.home-sub{color:var(--mt);font-size:12px;text-align:center;line-height:1.7;max-width:280px}
+.home-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:300px;margin-top:10px}
+/* ---- CAMERA SCREEN ---- */
+#camera{position:relative}
+.vf{position:relative;flex:1;background:#000;overflow:hidden}
+video,#pimg{width:100%;height:100%;object-fit:cover;display:none}
+.corner{position:absolute;width:22px;height:22px;z-index:10;pointer-events:none}
+.c-tl{top:12px;left:12px;border-top:2.5px solid var(--ac);border-left:2.5px solid var(--ac);border-radius:3px 0 0 0}
+.c-tr{top:12px;right:12px;border-top:2.5px solid var(--ac);border-right:2.5px solid var(--ac);border-radius:0 3px 0 0}
+.c-bl{bottom:60px;left:12px;border-bottom:2.5px solid var(--ac);border-left:2.5px solid var(--ac);border-radius:0 0 0 3px}
+.c-br{bottom:60px;right:12px;border-bottom:2.5px solid var(--ac);border-right:2.5px solid var(--ac);border-radius:0 0 3px 0}
+@keyframes scan{0%{top:-60px}100%{top:100%}}
+.scanline{position:absolute;left:0;right:0;height:60px;background:linear-gradient(transparent,rgba(0,255,136,.05),transparent);animation:scan 4s linear infinite;z-index:5;pointer-events:none}
+.grid{position:absolute;inset:0 0 50px 0;z-index:4;pointer-events:none;background-image:linear-gradient(rgba(0,255,136,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,.04) 1px,transparent 1px);background-size:33.33% 33.33%}
+.vf-ph{position:absolute;inset:0 0 50px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--mt);font-size:13px;text-align:center;padding:20px;z-index:3}
+.vf-ph .ico{font-size:48px;opacity:.4}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+.rec{position:absolute;top:14px;right:46px;width:8px;height:8px;border-radius:50%;background:var(--rd);z-index:11;display:none}
+.rec.on{display:block;animation:pulse 1.5s infinite}
+.scene-tag{position:absolute;bottom:60px;left:0;right:0;display:flex;justify-content:center;z-index:12;pointer-events:none}
+.scene-tag span{background:rgba(0,0,0,.7);border:1px solid var(--ac);color:var(--ac);font-size:10px;letter-spacing:2px;padding:4px 12px;border-radius:100px;display:none}
+/* camera bar */
+.cam-bar{height:80px;background:rgba(6,6,8,.95);border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-around;padding:0 20px;flex-shrink:0;z-index:20}
+.cam-btn{width:44px;height:44px;border-radius:50%;border:none;background:var(--sf2);color:var(--tx);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+.cam-btn:active{transform:scale(.93)}
+.cam-shutter{width:66px;height:66px;border-radius:50%;background:var(--ac);border:4px solid rgba(0,255,136,.25);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;box-shadow:0 0 20px rgba(0,255,136,.3)}
+.cam-shutter:active{transform:scale(.93);background:#00e07a}
+.cam-shutter:disabled{opacity:.45;cursor:not-allowed}
+/* ---- RESULTS SCREEN ---- */
+#results{overflow:hidden}
+.results-scroll{flex:1;overflow-y:auto;padding:14px 14px 20px;-webkit-overflow-scrolling:touch}
+.scene-pill{background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:11px;line-height:1.6}
+.scene-pill .lbl{font-size:9px;letter-spacing:2px;color:var(--ac);display:block;margin-bottom:4px}
+.scene-pill .val{color:#aaa}
+@keyframes up{from{transform:translateY(18px);opacity:0}to{transform:translateY(0);opacity:1}}
+.pose-card{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:10px;opacity:0;animation:up .4s ease forwards}
+.ph{display:flex;align-items:flex-start;gap:12px;margin-bottom:13px}
+.pemo{font-size:30px;line-height:1;margin-top:2px}
+.pname{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:3px}
+.pmood{font-size:11px;color:var(--mt);font-style:italic}
+.steps{list-style:none;display:flex;flex-direction:column;gap:8px}
+.step{display:flex;gap:10px;align-items:flex-start;font-size:12px;line-height:1.55;color:#bbbbc5}
+.sn{min-width:20px;height:20px;border-radius:50%;background:var(--dim);color:var(--ac);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;flex-shrink:0}
+.res-bar{height:70px;background:rgba(6,6,8,.95);border-top:1px solid var(--bd);display:flex;align-items:center;gap:10px;padding:0 14px;flex-shrink:0}
+/* ---- LOADING ---- */
+#loading-screen{align-items:center;justify-content:center;gap:16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:36px;height:36px;border:2.5px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:spin .75s linear infinite}
+.loading-lbl{color:var(--ac);font-size:10px;letter-spacing:2.5px}
+.loading-sub{color:var(--mt);font-size:11px}
+/* ---- SCENE PICKER ---- */
+#scene-picker{overflow-y:auto;padding:16px}
+.picker-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:4px}
+.picker-sub{color:var(--mt);font-size:11px;margin-bottom:16px}
+.scene-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.scene-tile{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px 12px;cursor:pointer;transition:.15s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.scene-tile:active{transform:scale(.96)}
+.scene-tile .se{font-size:28px}
+.scene-tile .sn2{font-size:11px;color:var(--tx);font-weight:700;font-family:'Syne',sans-serif}
+.scene-tile .sd{font-size:10px;color:var(--mt)}
+/* ---- BUTTONS ---- */
+.btn{flex:1;padding:13px 8px;border:none;border-radius:10px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;cursor:pointer;transition:.15s;letter-spacing:.3px}
+.btn:active{transform:scale(.97)}
+.btn-p{background:var(--ac);color:#000}
+.btn-p:active{background:#00e07a}
+.btn-s{background:var(--sf2);color:var(--tx);border:1px solid var(--bd)}
+.btn-s:hover{border-color:var(--ac);color:var(--ac)}
+.btn-g{background:transparent;color:var(--mt);border:1px solid var(--bd)}
+canvas{display:none}
+input[type=file]{display:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ai<em>pose</em></div>
+  <div class="badge">OFFLINE AI</div>
+</header>
+
+<!-- HOME -->
+<div class="screen active" id="home">
+  <div class="home-icon">🤸</div>
+  <div class="home-title">Your AI Pose Coach</div>
+  <div class="home-sub">Point your camera at any scene — AI reads the environment and suggests the perfect poses. Works 100% offline.</div>
+  <div class="home-btns">
+    <button class="btn btn-p" onclick="goCamera()">📷 Open Camera</button>
+    <button class="btn btn-s" onclick="document.getElementById('fi').click()">🖼 Upload a Photo</button>
+    <button class="btn btn-g" onclick="goPickScene()">🎭 Pick Scene Manually</button>
+  </div>
+</div>
+
+<!-- CAMERA -->
+<div class="screen" id="camera">
+  <div class="vf" id="vf">
+    <div class="corner c-tl"></div><div class="corner c-tr"></div>
+    <div class="corner c-bl"></div><div class="corner c-br"></div>
+    <div class="grid"></div>
+    <div class="scanline"></div>
+    <div class="rec" id="rec"></div>
+    <div class="scene-tag"><span id="scene-tag-txt"></span></div>
+    <div class="vf-ph" id="vf-ph">
+      <div class="ico">📷</div>
+      <div>Camera loading...</div>
+    </div>
+    <video id="vid" autoplay playsinline muted></video>
+    <img id="pimg" alt="">
+  </div>
+  <div class="cam-bar">
+    <button class="cam-btn" title="Back" onclick="goHome()">←</button>
+    <button class="cam-shutter" id="shutter" onclick="shoot()" title="Capture">✨</button>
+    <button class="cam-btn" title="Flip camera" onclick="flipCam()">🔄</button>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="screen" id="loading-screen">
+  <div class="spinner"></div>
+  <div class="loading-lbl">ANALYSING SCENE</div>
+  <div class="loading-sub">Reading colours & environment...</div>
+</div>
+
+<!-- RESULTS -->
+<div class="screen" id="results">
+  <div class="results-scroll" id="results-scroll"></div>
+  <div class="res-bar">
+    <button class="btn btn-p" onclick="goCamera()" style="flex:.9">📷 New Shot</button>
+    <button class="btn btn-g" onclick="goPickScene()">🎭 Change Scene</button>
+  </div>
+</div>
+
+<!-- SCENE PICKER -->
+<div class="screen" id="scene-picker">
+  <div style="padding:14px 14px 0">
+    <button class="btn btn-g" style="max-width:80px;padding:8px" onclick="goBack()">← Back</button>
+  </div>
+  <div style="padding:12px 14px 0">
+    <div class="picker-title">Choose Your Scene</div>
+    <div class="picker-sub">AI will suggest poses tailored to your environment</div>
+  </div>
+  <div class="scene-grid" id="scene-grid" style="padding:0 14px 20px;margin-top:8px"></div>
+</div>
+
+<canvas id="cv"></canvas>
+<input type="file" id="fi" accept="image/*" capture="environment">
+
+<script>
+// ─── POSE DATABASE ───────────────────────────────────────────────────────────
+const DB = {
+  beach: {
+    label:"Beach / Water", emoji:"🌊", desc:"By the sea, lake or river",
+    poses:[
+      {name:"Horizon Gaze",emoji:"🌅",mood:"Peaceful & dreamy",steps:["Stand at the water's edge, feet slightly apart","Turn 45° away from camera, looking toward the horizon","Let arms hang loose or clasp gently behind your back"]},
+      {name:"Sandy Sit",emoji:"🏖️",mood:"Carefree & effortless",steps:["Sit on the sand, knees drawn up toward your chest","Lean back on one hand behind you for support","Look sideways toward the water with a soft, relaxed face"]},
+      {name:"Arms Open Wide",emoji:"✨",mood:"Free & euphoric",steps:["Stand facing the water, feet shoulder-width apart","Spread both arms wide, palms facing up toward the sky","Tilt your head back slightly and close your eyes"]}
+    ]
+  },
+  nature: {
+    label:"Nature / Park", emoji:"🌿", desc:"Gardens, forests, fields",
+    poses:[
+      {name:"Tree Lean",emoji:"🌳",mood:"Natural & candid",steps:["Find a tree trunk to rest one shoulder against","Cross ankles casually, arms loosely folded","Look just past the camera with a relaxed, unbothered expression"]},
+      {name:"Ground Sit",emoji:"🍃",mood:"Grounded & serene",steps:["Sit on grass with both knees bent to one side","Support yourself with one hand planted behind you","Look up at the canopy or off into the distance"]},
+      {name:"Walk Away",emoji:"🌲",mood:"Mysterious & editorial",steps:["Start walking slowly away from the camera on a path","Mid-stride, glance back over one shoulder","Keep it natural — don't pause too long in the look-back"]}
+    ]
+  },
+  urban: {
+    label:"City / Street", emoji:"🏙️", desc:"Streets, buildings, walls",
+    poses:[
+      {name:"Wall Lean",emoji:"🧱",mood:"Cool & confident",steps:["Stand with your back flat against a textured wall","Raise one foot and rest it flat on the wall behind you","Look straight into the camera with a steady, neutral expression"]},
+      {name:"Steps Sit",emoji:"🪜",mood:"Candid & relaxed",steps:["Sit on the edge of steps, elbows resting on knees","Lean slightly forward, hands loosely clasped together","Look downward first, then slowly raise your eyes to the lens"]},
+      {name:"Mid-Stride",emoji:"🚶",mood:"Dynamic & editorial",steps:["Walk confidently toward the camera","Look just slightly past the lens, not directly into it","Let your arms and jacket swing naturally with your movement"]}
+    ]
+  },
+  cafe: {
+    label:"Café / Restaurant", emoji:"☕", desc:"Indoor dining, coffee shops",
+    poses:[
+      {name:"Elbow Rest",emoji:"🫖",mood:"Thoughtful & elegant",steps:["Sit with both elbows resting on the table","Hold your cup or rest your chin in one hand","Gaze slightly to the side as if lost in pleasant thought"]},
+      {name:"Look Up",emoji:"📖",mood:"Intellectual & cosy",steps:["Place an open book or phone on the table in front of you","Look up from it directly into the camera","Let a subtle, surprised-but-pleased expression cross your face"]},
+      {name:"Mid-Sip",emoji:"🧋",mood:"Lifestyle & candid",steps:["Hold your cup near your lips as if about to sip","Turn your gaze toward a window or the rest of the room","Let the photographer catch you mid-movement — don't pose stiffly"]}
+    ]
+  },
+  indoor: {
+    label:"Indoor / Home", emoji:"🏠", desc:"Rooms, offices, studios",
+    poses:[
+      {name:"Window Light",emoji:"🪟",mood:"Soft & introspective",steps:["Stand beside a window with natural light on one side of your face","Look out the window, not at the camera","Rest one hand lightly on the window frame or glass"]},
+      {name:"Casual Sit",emoji:"🛋️",mood:"Warm & approachable",steps:["Sit on a chair or sofa turned slightly at an angle","Rest one arm along the back of the seat behind you","Lean your chin on your free hand or let it fall naturally"]},
+      {name:"Doorframe Stand",emoji:"🚪",mood:"Confident & relaxed",steps:["Lean sideways into a doorframe with one shoulder","Cross your arms loosely — not tight, just resting","Tilt your head slightly and let a small smile reach your eyes"]}
+    ]
+  },
+  night: {
+    label:"Night / Evening", emoji:"🌃", desc:"After dark, neon lights",
+    poses:[
+      {name:"City Glow",emoji:"🌉",mood:"Mysterious & moody",steps:["Stand with the city lights or street lights as your backdrop","Face the camera but let your eyes look downward or to the side","The backlight will create a subtle silhouette — embrace it"]},
+      {name:"Neon Face",emoji:"💡",mood:"Vibrant & editorial",steps:["Find a neon sign or colourful light source nearby","Stand close enough for its light to colour one side of your face","Look directly into the camera with calm, steady confidence"]},
+      {name:"Sky Look",emoji:"🌙",mood:"Dreamy & poetic",steps:["Tilt your head back and gaze up at the night sky","Stretch arms out gently or keep them softly at your sides","Close your eyes for a serene, completely unbothered expression"]}
+    ]
+  },
+  generic: {
+    label:"Any Scene", emoji:"📸", desc:"Works anywhere",
+    poses:[
+      {name:"The 45° Turn",emoji:"🎯",mood:"Timeless & flattering",steps:["Stand at a 45° angle to the camera, body not fully facing it","Turn your head toward the lens while keeping your body angled","Shift your weight onto your back foot for a natural, easy lean"]},
+      {name:"Hair Touch",emoji:"💁",mood:"Natural & effortless",steps:["Raise one hand to gently touch or brush back your hair","Look slightly downward, then slowly glance up to the camera","Keep the movement slow and natural — never rushed or stiff"]},
+      {name:"Power Stand",emoji:"⚡",mood:"Strong & commanding",steps:["Place feet shoulder-width apart, weight perfectly balanced","Roll your shoulders back and raise your chin just a touch","Look directly into the lens with a calm, unshakeable expression"]}
+    ]
+  }
+};
+
+// ─── SCENE DETECTION (offline, pixel analysis) ──────────────────────────────
+function detectScene(canvas) {
+  const W=80,H=80;
+  const t=document.createElement('canvas');
+  t.width=W;t.height=H;
+  const tc=t.getContext('2d');
+  tc.drawImage(canvas,0,0,W,H);
+  const d=tc.getImageData(0,0,W,H).data;
+  const px=W*H;
+  let tR=0,tG=0,tB=0,tBr=0;
+  let sR=0,sG=0,sB=0; // sky (top third)
+  let gR=0,gG=0,gB=0; // ground (bottom third)
+  const sp=W*Math.floor(H/3);
+  for(let i=0;i<d.length;i+=4){
+    const pi=i/4,row=Math.floor(pi/W);
+    tR+=d[i];tG+=d[i+1];tB+=d[i+2];
+    tBr+=d[i]*.299+d[i+1]*.587+d[i+2]*.114;
+    if(row<H/3){sR+=d[i];sG+=d[i+1];sB+=d[i+2]}
+    if(row>H*2/3){gR+=d[i];gG+=d[i+1];gB+=d[i+2]}
+  }
+  const aR=tR/px,aG=tG/px,aB=tB/px,aBr=tBr/px;
+  const skR=sR/sp,skG=sG/sp,skB=sB/sp;
+  const grR=gR/sp,grG=gG/sp,grB=gB/sp;
+
+  const sc={beach:0,nature:0,cafe:0,indoor:0,urban:0,night:0,generic:0};
+  // Dark overall → night
+  if(aBr<55){sc.night+=12}
+  else if(aBr<90){sc.night+=4}
+  // Blue sky at top → outdoor
+  if(skB>skR&&skB>skG&&skB>90){sc.beach+=4;sc.nature+=3;sc.urban+=1}
+  // Strong blue overall → beach/water
+  if(aB>aR*1.25&&aB>aG*1.15&&aB>90){sc.beach+=7}
+  // Strong green overall → nature
+  if(aG>aR*1.15&&aG>aB*1.2&&aG>90){sc.nature+=7}
+  // Green ground → nature/park
+  if(grG>grR*1.15&&grG>grB){sc.nature+=4}
+  // Sandy / warm ground → beach
+  if(grR>grB*1.3&&grG>grB*1.1&&grR>140){sc.beach+=3}
+  // Warm tones (orangey) → indoor / cafe
+  if(aR>aB*1.3&&aG>aB*1.1&&aR>120){sc.indoor+=4;sc.cafe+=3}
+  // Very neutral grey tones → urban / indoor
+  if(Math.abs(aR-aG)<18&&Math.abs(aG-aB)<18&&aR>80&&aR<180){sc.urban+=3;sc.indoor+=2}
+  // High brightness neutral → urban / indoor
+  if(aBr>160&&Math.abs(aR-aB)<25){sc.indoor+=3;sc.urban+=2}
+  // Low saturation + moderate brightness → urban
+  const sat=Math.max(aR,aG,aB)-Math.min(aR,aG,aB);
+  if(sat<30&&aBr>70&&aBr<160){sc.urban+=3}
+
+  let best='generic',bv=0;
+  for(const[k,v] of Object.entries(sc)){if(v>bv){bv=v;best=k}}
+  return {scene:best,confidence:bv,brightness:aBr,r:aR,g:aG,b:aB};
+}
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let stream=null,facingMode='environment',capturedB64=null,capturedType='image/jpeg';
+let lastScene='generic';
+const vid=document.getElementById('vid');
+const cv=document.getElementById('cv');
+const pimg=document.getElementById('pimg');
+const rec=document.getElementById('rec');
+const tagTxt=document.getElementById('scene-tag-txt');
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active')}
+let _prevScreen='home';
+function goHome(){stopCam();show('home')}
+function goBack(){show(_prevScreen)}
+function goCamera(){_prevScreen='camera';show('camera');startCam()}
+function goPickScene(){_prevScreen=document.querySelector('.screen.active')?.id||'home';buildPicker();show('scene-picker')}
+
+// ─── CAMERA ──────────────────────────────────────────────────────────────────
+async function startCam(){
+  document.getElementById('vf-ph').style.display='flex';
+  vid.style.display='none';pimg.style.display='none';
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode,width:{ideal:1280},height:{ideal:1920}}});
+    vid.srcObject=stream;vid.play();
+    vid.onloadedmetadata=()=>{vid.style.display='block';document.getElementById('vf-ph').style.display='none'}
+    rec.classList.add('on');
+  }catch(e){
+    document.getElementById('vf-ph').innerHTML='<div class="ico">⚠️</div><div style="font-size:11px">Camera blocked.<br>Upload a photo instead.</div>';
+    rec.classList.remove('on');
+  }
+}
+function stopCam(){
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  vid.srcObject=null;rec.classList.remove('on');
+}
+async function flipCam(){
+  facingMode=facingMode==='environment'?'user':'environment';
+  stopCam();await startCam();
+}
+
+// ─── CAPTURE + ANALYSE ───────────────────────────────────────────────────────
+async function shoot(){
+  const btn=document.getElementById('shutter');
+  btn.disabled=true;
+  cv.width=vid.videoWidth||640;cv.height=vid.videoHeight||853;
+  cv.getContext('2d').drawImage(vid,0,0);
+  const url=cv.toDataURL('image/jpeg',.85);
+  capturedB64=url.split(',')[1];capturedType='image/jpeg';
+  pimg.src=url;pimg.style.display='block';vid.style.display='none';
+  stopCam();
+  const info=detectScene(cv);
+  lastScene=info.scene;
+  await analyseAndShow(info);
+  btn.disabled=false;
+}
+
+async function analyseAndShow(info){
+  show('loading-screen');
+  await new Promise(r=>setTimeout(r,700)); // small delay for UX
+  renderResults(info.scene,`Brightness ${Math.round(info.brightness)}, R${Math.round(info.r)} G${Math.round(info.g)} B${Math.round(info.b)}`);
+}
+
+// ─── FILE UPLOAD ─────────────────────────────────────────────────────────────
+document.getElementById('fi').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    const url=ev.target.result;
+    capturedB64=url.split(',')[1];capturedType=f.type||'image/jpeg';
+    cv.width=320;cv.height=320;
+    const img2=new Image();
+    img2.onload=async()=>{
+      cv.getContext('2d').drawImage(img2,0,0,320,320);
+      const info=detectScene(cv);
+      lastScene=info.scene;
+      show('loading-screen');
+      await new Promise(r=>setTimeout(r,700));
+      renderResults(info.scene,`Colour analysis complete`);
+    };
+    img2.src=url;
+  };
+  reader.readAsDataURL(f);
+  e.target.value='';
+});
+
+// ─── SCENE PICKER ────────────────────────────────────────────────────────────
+function buildPicker(){
+  const g=document.getElementById('scene-grid');
+  g.innerHTML=Object.entries(DB).map(([k,v])=>`
+    <div class="scene-tile" onclick="pickScene('${k}')">
+      <span class="se">${v.emoji}</span>
+      <span class="sn2">${v.label}</span>
+      <span class="sd">${v.desc}</span>
+    </div>`).join('');
+}
+function pickScene(scene){lastScene=scene;renderResults(scene,'Manually selected');}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function renderResults(scene,detail){
+  const data=DB[scene]||DB.generic;
+  const sceneNames={beach:'Beach/Water',nature:'Nature/Park',cafe:'Café/Indoor dining',indoor:'Indoor/Home',urban:'City/Street',night:'Night/Evening',generic:'General'};
+  let html=`<div class="scene-pill"><span class="lbl">SCENE DETECTED</span><span class="val">${data.emoji} ${sceneNames[scene]||scene} &nbsp;·&nbsp; ${detail}</span></div>`;
+  data.poses.forEach((p,i)=>{
+    const d=(i*.13).toFixed(2);
+    html+=`<div class="pose-card" style="animation-delay:${d}s">
+      <div class="ph"><span class="pemo">${p.emoji}</span><div><div class="pname">${p.name}</div><div class="pmood">${p.mood}</div></div></div>
+      <ul class="steps">${p.steps.map((s,j)=>`<li class="step"><span class="sn">${j+1}</span><span>${s}</span></li>`).join('')}</ul>
+    </div>`;
+  });
+  document.getElementById('results-scroll').innerHTML=html;
+  document.getElementById('results-scroll').scrollTop=0;
+  show('results');
+}
+
+// ─── SERVICE WORKER ──────────────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
